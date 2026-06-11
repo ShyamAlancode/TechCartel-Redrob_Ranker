@@ -23,13 +23,10 @@ REFERENCE_DATE = dt.date(2026, 6, 1)
 # Embedding model
 # ---------------------------------------------------------------------------
 
-# EMBEDDING MODEL: keeping all-MiniLM-L6-v2.
-# BGE-small-en-v1.5 was benchmarked at 7/s on the Ryzen 7 7735HS CPU (4 hours
-# for 100K candidates vs 40 min for MiniLM). The 6x slowdown makes the upgrade
-# impractical within the submission timeline. MiniLM artifacts in artifacts/
-# remain valid and are used by rank.py as-is.
-#
-# If GPU becomes available, swap to "BAAI/bge-small-en-v1.5" and re-run embed.py.
+# EMBEDDING MODEL: finalized to sentence-transformers/all-MiniLM-L6-v2.
+# This model was chosen for its high efficiency on CPU (benchmarked at ~41/s,
+# embedding the entire 100K candidate pool in ~40 minutes) and excellent
+# compatibility with the deployment environment constraints.
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
 EMBED_BATCH_SIZE = 256

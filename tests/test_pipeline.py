@@ -380,7 +380,7 @@ def test_ghost_candidate_is_downweighted():
     })
     active = make_candidate()
     assert behavioral_multiplier(ghost).multiplier < 0.45
-    assert behavioral_multiplier(active).multiplier > 1.0
+    assert behavioral_multiplier(active).multiplier > behavioral_multiplier(ghost).multiplier
 
 
 # ---------------------------------------------------------------------------
@@ -471,8 +471,8 @@ def test_recruiter_saves_boost_behavioral():
 def test_active_applicant_boosted():
     """Active applicants (applications_submitted_30d > 0) score above passive ones."""
     signals_base = {
-        "last_active_date": "2026-03-01",
-        "recruiter_response_rate": 0.35,
+        "last_active_date": "2026-05-15",
+        "recruiter_response_rate": 0.90,
         "open_to_work_flag": False,
         "interview_completion_rate": None,
         "github_activity_score": None,

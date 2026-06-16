@@ -13,6 +13,7 @@ that asymmetry; addition does not.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from . import config
@@ -38,11 +39,7 @@ def behavioral_multiplier(candidate: dict) -> BehavioralResult:
     if last_active:
         days = (config.REFERENCE_DATE - last_active).days
         result.days_inactive = days
-        step = config.ACTIVITY_DECAY_STALE
-        for max_days, value in config.ACTIVITY_DECAY:
-            if days <= max_days:
-                step = value
-                break
+        step = math.exp(-max(0, days) / 60.0)
         m *= step
         if days > 90:
             result.concerns.append(f"inactive on platform for ~{days} days")
@@ -51,18 +48,14 @@ def behavioral_multiplier(candidate: dict) -> BehavioralResult:
 
     # -- Responsiveness -----------------------------------------------------
     rate = signals.get("recruiter_response_rate")
-    if rate is not None:
-        result.response_rate = rate
-        step = config.RESPONSE_RATE_FLOOR
-        for min_rate, value in config.RESPONSE_RATE_STEPS:
-            if rate >= min_rate:
-                step = value
-                break
-        m *= step
-        if rate < 0.2:
-            result.concerns.append(f"{rate:.0%} recruiter response rate")
-        elif rate >= 0.6:
-            result.notes.append(f"{rate:.0%} recruiter response rate")
+    if rate is None:
+        rate = 0.5
+    result.response_rate = rate
+    m *= rate
+    if rate < 0.2:
+        result.concerns.append(f"{rate:.0%} recruiter response rate")
+    elif rate >= 0.6:
+        result.notes.append(f"{rate:.0%} recruiter response rate")
 
     # -- Stated availability ------------------------------------------------
     if signals.get("open_to_work_flag"):
@@ -109,9 +102,9 @@ def behavioral_multiplier(candidate: dict) -> BehavioralResult:
     if icr is None:
         icr = 0.5
 
-    if icr < 0.4:
-        interview_mult = 0.85
-        result.concerns.append(f"completes only {icr:.0%} of scheduled interviews")
+    if icr < 0.3:
+        interview_mult = 0.1  # Ghosting crush
+        result.concerns.append(f"completes only {icr:.0%} of scheduled interviews (ghosting risk)")
     elif icr > 0.8:
         interview_mult = 1.05
     else:

@@ -115,10 +115,19 @@ def check_integrity(candidate: dict) -> IntegrityReport:
             job.get("duration_months", 0) > 120):  # 10+ years at a micro company
             report.soft_flags.append("micro_company_long_tenure")
 
-    # -- 6. Career duration inflation (Type 4) -----------------------------
+    # -- 6. Timeline Matrix (Hard flag replacement for Type 4) -------------
     total_months = sum(j.get("duration_months", 0) for j in history)
     yoe_months = float(profile.get("years_of_experience") or 0.0) * 12
-    if total_months > yoe_months + 24:  # more than 2 years gap
-        report.soft_flags.append("career_duration_inflation")
+    if yoe_months > 0 and abs(total_months - yoe_months) > 36:  # deviates by > 3 years
+        report.hard_flags.append(
+            f"career history sum ({total_months/12:.1f}y) drastically differs from stated experience ({yoe_months/12:.1f}y)"
+        )
+
+    # -- 7. Stuffer Check --------------------------------------------------
+    summary_words = len(profile.get("summary", "").split())
+    if len(skills) > 25 and summary_words < 15:
+        report.hard_flags.append(
+            f"claims {len(skills)} skills but summary is only {summary_words} words"
+        )
 
     return report

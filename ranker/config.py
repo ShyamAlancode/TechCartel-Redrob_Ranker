@@ -23,12 +23,10 @@ REFERENCE_DATE = dt.date(2026, 6, 1)
 # Embedding model
 # ---------------------------------------------------------------------------
 
-# EMBEDDING MODEL: finalized to sentence-transformers/all-MiniLM-L6-v2.
-# This model was chosen for its high efficiency on CPU (benchmarked at ~41/s,
-# embedding the entire 100K candidate pool in ~40 minutes) and excellent
-# compatibility with the deployment environment constraints.
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-EMBEDDING_DIM = 384
+# EMBEDDING MODEL: finalized to BAAI/bge-large-en-v1.5.
+# If this changes, pre-computation MUST be re-run across the 465MB candidate pool.
+EMBEDDING_MODEL = "BAAI/bge-large-en-v1.5"
+EMBEDDING_DIM = 1024
 EMBED_BATCH_SIZE = 256
 
 # Career-history text used for embedding: most recent N roles, each truncated.

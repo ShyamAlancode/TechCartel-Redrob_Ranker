@@ -103,7 +103,7 @@ def behavioral_multiplier(candidate: dict) -> BehavioralResult:
         icr = 0.5
 
     if icr < 0.3:
-        interview_mult = 0.1  # Ghosting crush
+        interview_mult = 0.70  # softer penalty
         result.concerns.append(f"completes only {icr:.0%} of scheduled interviews (ghosting risk)")
     elif icr > 0.8:
         interview_mult = 1.05

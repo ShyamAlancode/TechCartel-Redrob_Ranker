@@ -9,8 +9,8 @@ import numpy as np
 # Adjust path so we can import from ranker
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ranker import config
-from ranker.pipeline import build_pipeline
 from ranker.loading import load_candidates_blob
+from ranker.pipeline import select_top
 
 def main():
     if len(sys.argv) < 2:
@@ -39,11 +39,18 @@ def main():
     with open(sample_path, "rb") as f:
         all_candidates = load_candidates_blob(f.read())
         
-    # Mock embeddings for test purposes since BGE embeddings need to be built.
-    print("Initializing dummy embeddings for calibration (dim 1024)...")
-    embeddings = np.random.rand(len(all_candidates), 1024).astype(np.float32)
-    
-    pipeline = build_pipeline(all_candidates, embeddings)
+    artifacts = Path("artifacts")
+    if not (artifacts / "candidate_embeddings.npy").exists():
+        print("Embeddings not found. Run embed.py first.")
+        return
+        
+    # Replace dummy random embeddings with actual loaded embeddings
+    embeddings = np.load(artifacts / "candidate_embeddings.npy")
+    jd_vec = np.load(artifacts / "jd_embedding.npy")
+    sims = embeddings @ jd_vec
+    lo, hi = sims.min(), sims.max()
+    span = (hi - lo) or 1.0
+    semantic_lookup_dict = {c["candidate_id"]: float((s - lo) / span) for c, s in zip(all_candidates, sims)}
     
     best_loss = float('inf')
     best_weights = None
@@ -63,10 +70,7 @@ def main():
             config.W_STRUCTURAL = w_str
             
             # Score
-            scored = pipeline.score_all()
-            
-            # Rank
-            ranked = sorted(scored, key=lambda x: x.final_score, reverse=True)
+            ranked = select_top(all_candidates, semantic_lookup_dict.get, top_k=len(all_candidates))
             
             # Calculate loss: 
             # Perfect candidates should be at rank 0, Trap candidates should be >= 100

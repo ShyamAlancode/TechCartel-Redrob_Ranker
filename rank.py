@@ -34,7 +34,7 @@ def load_semantic_lookup(artifacts: Path):
     min-max normalised over the pool so the semantic component shares the
     [0, 1] scale of the structural component.
     """
-    embeddings = np.load(artifacts / "candidate_embeddings.npy")
+    embeddings = np.load(artifacts / "candidate_embeddings.npy").astype(np.float32)
     jd = np.load(artifacts / "jd_embedding.npy")
     ids = json.loads((artifacts / "candidate_ids.json").read_text(encoding="utf-8"))
     if len(ids) != embeddings.shape[0]:

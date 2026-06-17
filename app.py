@@ -84,9 +84,11 @@ if uploaded is not None:
         with st.spinner("Scoring..."):
             ranked = select_top(iter(candidates), lookup.get, top_k=min(top_k, len(candidates)))
             # write_submission expects a path; reuse its CSV logic via a temp file.
-            out_path = Path("sandbox_output.csv")
-            write_submission(ranked, out_path)
-            csv_text = out_path.read_text(encoding="utf-8")
+            import tempfile
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmp_path = Path(tmpdir) / "sandbox.csv"
+                write_submission(ranked, tmp_path)
+                csv_text = tmp_path.read_text(encoding="utf-8")
 
         df = pd.read_csv(io.StringIO(csv_text))
         st.subheader("Ranked output")

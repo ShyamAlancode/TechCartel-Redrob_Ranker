@@ -59,7 +59,7 @@ ai_usage_summary: |
 # Approach summary
 # ============================================================================
 methodology_summary: |
-  Hybrid semantic + structural ranker. Pre-computation: BAAI/bge-large-en-v1.5
+  Hybrid semantic + structural ranker. Pre-computation: BAAI/bge-small-en-v1.5
   embeddings (CPU) of a narrative-weighted candidate document (summary +
   recent role descriptions; skills only if used >= 6 months) and of the JD.
   Ranking (< 5 min, numpy only): final = (0.40 x semantic + 0.60 x structural)

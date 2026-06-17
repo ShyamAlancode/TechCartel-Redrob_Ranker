@@ -25,8 +25,8 @@ REFERENCE_DATE = dt.date(2026, 6, 1)
 
 # EMBEDDING MODEL: finalized to BAAI/bge-large-en-v1.5.
 # If this changes, pre-computation MUST be re-run across the 465MB candidate pool.
-EMBEDDING_MODEL = "BAAI/bge-large-en-v1.5"
-EMBEDDING_DIM = 1024
+EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+EMBEDDING_DIM = 384
 EMBED_BATCH_SIZE = 256
 
 # Career-history text used for embedding: most recent N roles, each truncated.

@@ -84,8 +84,14 @@ def _lead_sentence(f: dict, lead_idx: int) -> str:
     detail_idx = lead_idx % 3
     if detail_idx == 0 and f["evidence"]:
         lead += f"; {f['evidence'][0]}"
-    elif detail_idx == 1 and skills:
-        lead += f"; evidenced depth in {skills}"
+    elif detail_idx == 1:
+        tier1_hit = next((e for e in f["evidence"] if "Tier-1" in e), None)
+        if tier1_hit:
+            lead += f"; {tier1_hit}"
+        elif skills:
+            lead += f"; evidenced depth in {skills}"
+        elif f["evidence"]:
+            lead += f"; {f['evidence'][-1]}"
     elif f["evidence"]:
         lead += f"; {f['evidence'][-1]}"
     elif skills:

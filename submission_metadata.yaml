@@ -23,7 +23,7 @@ sandbox_link: "https://huggingface.co/spaces/ShyamAlancode/redrob-ranker"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./team_xxx.csv"
 # Ranking step only; requires the precomputed artifacts below. End-to-end:
-#   python embed.py --candidates ./candidates.jsonl   (one-time precompute, ~45 min)
+#   python embed.py --candidates ./candidates.jsonl   (one-time precompute, ~163 min)
 #   python rank.py --candidates ./candidates.jsonl --out ./team_xxx.csv   (< 5 min)
 
 # ============================================================================
@@ -38,7 +38,7 @@ compute:
   uses_gpu_for_inference: false
   has_network_during_ranking: false
   pre_computation_required: true
-  pre_computation_time_minutes: 42
+  pre_computation_time_minutes: 163
 
 # ============================================================================
 # AI tools declaration

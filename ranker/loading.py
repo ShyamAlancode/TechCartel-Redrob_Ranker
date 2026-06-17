@@ -101,8 +101,14 @@ def build_candidate_document(candidate: dict) -> str:
         title = job.get("title", "")
         parts.append(f"{title}: {desc}")
     
-    # Top skills by endorsements (proxy for real usage)
-    top_skills = sorted(skills, key=lambda s: s.get("endorsements", 0), reverse=True)[:8]
+    # Top skills by endorsements — but only if the candidate has actually used
+    # the skill for >= 6 months. This is the anti-keyword-stuffing filter:
+    # a skill list with zero-duration 'expert' entries contributes nothing here.
+    top_skills = sorted(
+        [s for s in skills if (s.get("duration_months") or 0) >= 6],
+        key=lambda s: s.get("endorsements", 0),
+        reverse=True,
+    )[:8]
     skill_names = ", ".join(s.get("name", "") for s in top_skills)
     if skill_names:
         parts.append(f"Skills: {skill_names}")

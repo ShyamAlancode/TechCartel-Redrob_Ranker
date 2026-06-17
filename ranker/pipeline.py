@@ -78,12 +78,17 @@ def select_top(candidates: Iterator[dict],
             skipped += 1
             continue
         scored = score_candidate(record, sem)
-        # heapq is a min-heap; invert candidate_id ordering so that, on equal
-        # scores, the lexicographically *larger* id is evicted first.
-        entry = (scored.final, _InvertedStr(cid), scored)
+        # Store (-final_score, candidate_id, scored) in a min-heap.
+        # Negating the score turns the min-heap into an effective max-heap:
+        # heappop() removes the entry with the *smallest* negated score, i.e.
+        # the *lowest* final score — exactly the candidate we want to evict.
+        # On equal final scores, candidate_id sorts ascending naturally, so
+        # the *largest* id is evicted first, preserving the spec's tie-break
+        # rule (ascending candidate_id in the output CSV).
+        entry = (-scored.final, cid, scored)
         if len(heap) < limit:
             heapq.heappush(heap, entry)
-        elif entry > heap[0]:
+        elif entry < heap[0]:  # new entry has higher final score (less negative)
             heapq.heapreplace(heap, entry)
 
     if skipped:
@@ -92,13 +97,6 @@ def select_top(candidates: Iterator[dict],
     finalists = sorted((e[2] for e in heap), key=ScoredCandidate.sort_key)
     return finalists[:top_k]
 
-
-class _InvertedStr(str):
-    """String with reversed comparison, for min-heap tiebreak ordering."""
-    def __lt__(self, other):  # type: ignore[override]
-        return str.__gt__(self, other)
-    def __gt__(self, other):  # type: ignore[override]
-        return str.__lt__(self, other)
 
 
 def write_submission(ranked: list[ScoredCandidate], out_path: str | Path) -> None:

@@ -78,8 +78,8 @@ def main() -> None:
             print(f"  {n:>6} candidates embedded  ({elapsed/60:.1f} min, {n/elapsed:.0f}/s)")
     flush()
 
-    matrix = np.vstack(chunks) if chunks else np.zeros((0, config.EMBEDDING_DIM), np.float16)
-    np.save(out_dir / "candidate_embeddings.npy", matrix.astype(np.float16))
+    matrix = np.vstack(chunks) if chunks else np.zeros((0, config.EMBEDDING_DIM), np.float32)
+    np.save(out_dir / "candidate_embeddings.npy", matrix.astype(np.float32))
     (out_dir / "candidate_ids.json").write_text(json.dumps(ids), encoding="utf-8")
 
     print(f"Done: {len(ids)} embeddings -> {out_dir}/ in {(time.time()-started)/60:.1f} min")

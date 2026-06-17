@@ -8,12 +8,82 @@ named section of data/job_description.txt.
 
 from __future__ import annotations
 
+import hashlib
 import math
+import re
 from dataclasses import dataclass, field
 
 from . import config
 from .loading import parse_date
-import re
+
+
+# ---------------------------------------------------------------------------
+# Module-level constants (hoisted from _apply_penalties for performance —
+# these were being reconstructed once per candidate = 100K allocations).
+# ---------------------------------------------------------------------------
+
+# NLP/IR terms that are unambiguous enough to count as positive NLP evidence.
+# Multi-word or long tokens only; short ambiguous ones ("nlp", "text") excluded.
+_NLP_POSITIVE_TERMS: tuple[str, ...] = (
+    "natural language processing", "natural language", "information retrieval",
+    "language model", "large language", "embedding", "embeddings",
+    "retrieval", "semantic search", "vector search", "text classification",
+    "sentiment analysis", "named entity", "machine translation",
+    "question answering", "reading comprehension",
+    "ranking", "recommendation", "recommender",
+    "word2vec", "bert", "transformer", "lstm",
+)
+
+# LangChain/wrapper vocabulary — specific enough that negation phrases can't
+# accidentally match ("no langchain experience" still contains "langchain").
+_LANGCHAIN_TERMS: tuple[str, ...] = (
+    "langchain", "openai api", "gpt-", "chatgpt", "llm api",
+    "llamaindex", "llama index", "llama_index", "openai.chat",
+)
+
+# Pre-LLM ML production terms. Vector DBs (faiss, pinecone, weaviate, qdrant,
+# milvus) intentionally excluded: a LangChain-Pinecone RAG demo uses Pinecone
+# as a wrapper, NOT as evidence of pre-LLM production ML experience.
+_PRE_LLM_TERMS: tuple[str, ...] = (
+    "word2vec", "fasttext", "glove embedding",
+    "bert", "lstm", "seq2seq", "attention mechanism",
+    "xgboost", "scikit-learn", "sklearn", "tensorflow", "pytorch", "keras",
+    "a/b test", "ndcg", "mrr", "bm25",
+    "elasticsearch",
+    "feature engineering", "gradient boosting", "random forest",
+    "collaborative filtering", "matrix factorization",
+    "sentence-transformer", "sentence transformer",
+)
+
+# Research-flavoured titles that may or may not include production work.
+# Distinct from config.RESEARCH_TITLE_TERMS (which covers pure-research roles).
+_RESEARCH_FLAVORED_TITLES: tuple[str, ...] = (
+    "research engineer", "research scientist",
+    "research analyst", "ai researcher", "ml researcher",
+)
+
+# JD skills split by length for efficient word-boundary matching.
+# Short tokens (< 5 chars) need regex \b guards to avoid false positives:
+# "rag" in "storage", "e5" in "e5500", "nlp" in "nlp" substring of longer words.
+_JD_SKILL_LONG:  frozenset[str] = frozenset(s for s in config.JD_SKILLS if len(s) >= 5)
+_JD_SKILL_SHORT: frozenset[str] = frozenset(s for s in config.JD_SKILLS if len(s) <  5)
+
+
+def _skill_matches_jd(name: str) -> bool:
+    """Return True if the skill name matches any JD skill token.
+
+    Long tokens (>= 5 chars) use plain substring containment (fast, safe).
+    Short tokens (< 5 chars: 'rag', 'e5', 'nlp', 'lora', 'bge') use
+    word-boundary regex to prevent false positives like 'rag' in 'storage'
+    or 'lora' in 'florida'.
+    """
+    for token in _JD_SKILL_LONG:
+        if token in name or name in token:
+            return True
+    for token in _JD_SKILL_SHORT:
+        if re.search(r'\b' + re.escape(token) + r'\b', name):
+            return True
+    return False
 
 
 def _contains_any(text: str, terms: tuple[str, ...] | frozenset | set) -> bool:
@@ -59,7 +129,11 @@ def _title_domain_score(profile: dict, result: StructuralResult) -> float:
     if _contains_any(combined, config.ML_TITLE_TERMS):
         # Rotate phrasing deterministically by hashing the title string itself
         # so the same profile always gets the same evidence phrase.
-        idx = hash(title) % len(_TITLE_EVIDENCE_TEMPLATES)
+        # hashlib.md5 is used instead of hash() because Python randomises
+        # string hashes per-process via PYTHONHASHSEED, which would produce
+        # different CSV output on every run and break the byte-identical
+        # reproduction guarantee stated in the README.
+        idx = int(hashlib.md5(title.encode()).hexdigest(), 16) % len(_TITLE_EVIDENCE_TEMPLATES)
         result.evidence.append(_TITLE_EVIDENCE_TEMPLATES[idx].format(title=title))
         return 1.0
     if _contains_any(combined, config.ADJACENT_TITLE_TERMS):
@@ -166,7 +240,9 @@ def _skills_trust_score(candidate: dict, result: StructuralResult) -> float:
     total = 0.0
     for skill in candidate.get("skills", []) or []:
         name = (skill.get("name") or "").lower()
-        if not any(jd in name or (len(name) >= 3 and name in jd) for jd in config.JD_SKILLS):
+        # _skill_matches_jd uses word-boundary regex for short tokens (< 5 chars)
+        # so "rag" no longer matches "storage", "e5" no longer matches "e5500", etc.
+        if not _skill_matches_jd(name):
             continue
         duration = skill.get("duration_months", 0) or 0
         endorsements = skill.get("endorsements", 0) or 0
@@ -317,17 +393,9 @@ def _apply_penalties(candidate: dict, base: float, result: StructuralResult) -> 
     full_text = f"{narrative} {skills_text}"
     cv_hits = _count_hits(full_text, config.CV_SPEECH_ROBOTICS_TERMS)
     # Only count multi-word or unambiguous NLP/IR terms to avoid false positives.
-    nlp_positive_terms = (
-        "natural language processing", "natural language", "information retrieval",
-        "language model", "large language", "embedding", "embeddings",
-        "retrieval", "semantic search", "vector search", "text classification",
-        "sentiment analysis", "named entity", "machine translation",
-        "question answering", "reading comprehension",
-        "ranking", "recommendation", "recommender",
-        "word2vec", "bert", "transformer", "lstm",
-    )
+    # (Module-level constant _NLP_POSITIVE_TERMS — not rebuilt per candidate.)
     nlp_hits = sum(
-        1 for t in nlp_positive_terms
+        1 for t in _NLP_POSITIVE_TERMS
         if re.search(r'\b' + re.escape(t) + r'\b', full_text)
     )
     if cv_hits >= 3 and nlp_hits == 0:
@@ -343,21 +411,13 @@ def _apply_penalties(candidate: dict, base: float, result: StructuralResult) -> 
     # is no evidence of pre-LLM ML work. We use only unambiguous, specific
     # pre-LLM terms so that negating phrases like "no retrieval systems" don't
     # accidentally register as positive pre-LLM evidence.
-    langchain_terms = ("langchain", "openai api", "gpt-", "chatgpt", "llm api",
-                       "llamaindex", "llama index", "llama_index", "openai.chat")
-    # Specific enough that they can't appear by accident in a negation phrase.
-    pre_llm_terms = (
-        "word2vec", "fasttext", "glove embedding",
-        "bert", "lstm", "seq2seq", "attention mechanism",
-        "xgboost", "scikit-learn", "sklearn", "tensorflow", "pytorch", "keras",
-        "a/b test", "ndcg", "mrr", "bm25",
-        "elasticsearch", "faiss", "pinecone", "weaviate", "qdrant", "milvus",
-        "feature engineering", "gradient boosting", "random forest",
-        "collaborative filtering", "matrix factorization",
-        "sentence-transformer", "sentence transformer",
-    )
-    lc_in_narrative = _contains_any(narrative, langchain_terms)
-    pre_llm_hits = _count_hits(narrative, pre_llm_terms)
+    # Module-level constants (not rebuilt per candidate).
+    # _LANGCHAIN_TERMS and _PRE_LLM_TERMS are defined at the top of this module.
+    # Note: vector DBs (faiss, pinecone, weaviate, qdrant, milvus) are intentionally
+    # NOT in _PRE_LLM_TERMS. A LangChain-Pinecone RAG demo uses Pinecone as a
+    # convenience wrapper — it is not evidence of pre-LLM ML production experience.
+    lc_in_narrative = _contains_any(narrative, _LANGCHAIN_TERMS)
+    pre_llm_hits = _count_hits(narrative, _PRE_LLM_TERMS)
     lc_skill_months = sum(
         s.get("duration_months", 0) or 0
         for s in candidate.get("skills", []) or []
@@ -366,7 +426,7 @@ def _apply_penalties(candidate: dict, base: float, result: StructuralResult) -> 
     non_lc_ml_months = sum(
         s.get("duration_months", 0) or 0
         for s in candidate.get("skills", []) or []
-        if (any(jd in (s.get("name") or "").lower() for jd in config.JD_SKILLS)
+        if (_skill_matches_jd((s.get("name") or "").lower())
             and not any(t in (s.get("name") or "").lower()
                         for t in ("langchain", "openai", "gpt", "chatgpt")))
     )
@@ -410,8 +470,8 @@ def _apply_penalties(candidate: dict, base: float, result: StructuralResult) -> 
     # This fires independently of the hard research_only check above — it
     # targets the softer case of one research-flavoured title in an otherwise
     # product-company career that the hard check misses.
-    RESEARCH_TITLE_TERMS = ("research engineer", "research scientist",
-                            "research analyst", "ai researcher", "ml researcher")
+    # _RESEARCH_FLAVORED_TITLES is a module-level constant (not the same as
+    # config.RESEARCH_TITLE_TERMS which covers pure-research roles).
     recent_jobs = sorted(
         history,
         key=lambda j: parse_date(j.get("start_date")) or __import__("datetime").date.min,
@@ -419,7 +479,7 @@ def _apply_penalties(candidate: dict, base: float, result: StructuralResult) -> 
     )[:2]  # current + one prior
     for job in recent_jobs:
         job_title = (job.get("title") or "").lower()
-        if _contains_any(job_title, RESEARCH_TITLE_TERMS):
+        if _contains_any(job_title, _RESEARCH_FLAVORED_TITLES):
             # Check production evidence across the full narrative.
             prod_hits = _count_hits(narrative, config.PRODUCTION_EVIDENCE_TERMS)
             if prod_hits < config.RESEARCH_PROD_MIN_HITS:

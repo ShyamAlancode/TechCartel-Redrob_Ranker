@@ -10,8 +10,8 @@ venv/
 candidates.jsonl
 candidates.jsonl.gz
 
-# Large embedding matrix (~147 MB, over GitHub's 100 MB file limit).
-# Regenerated deterministically by embed.py — see README "Artifacts".
+# Large embedding matrix (~290 MB float32, over GitHub's 100 MB file limit).
+# Regenerated deterministically by embed.py -- see README "Artifacts".
 artifacts/candidate_embeddings.npy
 
 # Local outputs
@@ -24,3 +24,8 @@ team_*.csv
 Thumbs.db
 .vscode/
 .idea/
+
+# Codebase dump files (generated locally, too large for GitHub)
+full_codebase_dump*.txt
+dump_code.py
+split_file.py

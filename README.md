@@ -41,22 +41,23 @@ final = (0.40 × semantic + 0.60 × structural)
 
 **Semantic** — cosine similarity between the JD embedding and a candidate
 document built from *narrative* fields (summary, headline, recent role
-descriptions), embedded with `all-MiniLM-L6-v2`. Skills enter the document
+descriptions), embedded with `BAAI/bge-small-en-v1.5`. Skills enter the document
 only if used ≥ 6 months, so a stuffed skill list contributes nothing here.
 Similarities are min-max normalised over the pool. This component is what
 surfaces the "plain-language" strong candidates the JD warns about — people
 who never write "RAG" but describe building a recommendation system.
 
 **Structural (dominant, 0.60)** — the JD is rule-heavy, and rules an
-embedding cannot see decide this dataset. Five weighted components
+embedding cannot see decide this dataset. Six weighted components
 (title/domain fit 0.30, career evidence of shipped retrieval/ranking systems
-0.30, experience band 0.15, trust-weighted JD-skill coverage 0.15, logistics
-0.10), then explicit penalty multipliers for every disqualifier the JD names:
-consulting-only careers, research-only careers, title-chasers, CV/speech/
-robotics-only specialists, leadership roles with stale hands-on work, and
-keyword stuffers (an AI skill list attached to a non-technical career is cut
-to 5%). Skill trust is weighted by endorsements and `duration_months`, so
-self-reported "expert" claims with no usage time score ~0.
+0.30, experience band 0.15, trust-weighted JD-skill coverage 0.15,
+education tier 0.05, logistics 0.05), then explicit penalty multipliers for
+every disqualifier the JD names: consulting-only careers, research-only
+careers, title-chasers, CV/speech/robotics-only specialists, leadership roles
+with stale hands-on work, and keyword stuffers (an AI skill list attached to
+a non-technical career is cut to 5%). Skill trust is weighted by endorsements
+and `duration_months`, so self-reported "expert" claims with no usage time
+score ~0.
 
 **Behavioral (multiplier, 0.30–1.15)** — activity recency, recruiter response
 rate, open-to-work, interview completion, verification. Multiplicative on
@@ -126,7 +127,7 @@ artifacts/                embedding artifacts written by embed.py
 |---|---|---|
 | `jd_embedding.npy` | 1.5 KB | yes |
 | `candidate_ids.json` | ~1.3 MB | yes |
-| `candidate_embeddings.npy` | ~147 MB | **no** — exceeds GitHub's 100 MB file limit |
+| `candidate_embeddings.npy` | ~290 MB (float32) | **no** — exceeds GitHub's 100 MB file limit |
 
 The embedding matrix is regenerated deterministically by the documented
 pre-computation command above (spec §10.3 allows "a script that produces

@@ -18,7 +18,7 @@ team_members:
 # ============================================================================
 # Code and reproducibility
 # ============================================================================
-github_repo: "https://github.com/ShyamAlancode/redrob-ranker"
+github_repo: "https://github.com/ShyamAlancode/TechCartel-Redrob_Ranker"
 sandbox_link: "https://huggingface.co/spaces/ShyamAlancode/redrob-ranker"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./team_xxx.csv"

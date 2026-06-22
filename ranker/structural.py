@@ -532,21 +532,18 @@ def structural_score(candidate: dict) -> StructuralResult:
 
     title_lower = (profile.get("current_title") or "").lower()
     is_non_tech = _contains_any(title_lower, config.NON_TECH_TITLE_TERMS)
-
-    # Tightened irrelevant career check:
-    # 1. Wholly irrelevant careers (Civil Engineers, Accountants, HR Managers, etc.)
-    # 2. explicitly non-tech title and has never held a technical title
-    # 3. Candidate is not in an ML/AI role (title_domain < 1.0) and has zero retrieval/search/ranking career history evidence.
-    history_narrative = " ".join((j.get("description") or "") for j in history).lower()
-    retrieval_hits = _count_hits(history_narrative, config.RETRIEVAL_EVIDENCE_TERMS)
     is_ml_title = _contains_any(title_lower, config.ML_TITLE_TERMS) or (
         components["title_domain"] >= 1.0
     )
 
+    # Tightened irrelevant career check:
+    # 1. Wholly irrelevant careers (Civil Engineers, Accountants, HR Managers, etc.)
+    # 2. explicitly non-tech title and has never held a technical title
+    # 3. Genuinely non-ML title AND no career evidence of ML/retrieval (<= 0.15) AND no trusted/verified ML skills (<= 0.05)
     if (
         (components["title_domain"] <= 0.05 and components["career_evidence"] <= 0.15)
         or (is_non_tech and not has_tech_title)
-        or (not is_ml_title and retrieval_hits == 0)
+        or (not is_ml_title and components["career_evidence"] <= 0.15 and components["skills_trust"] <= 0.05)
     ):
         result.penalties.append("irrelevant_career")
         result.concerns.append("no ML/retrieval background found in title or career history")

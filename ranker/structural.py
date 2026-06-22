@@ -533,17 +533,21 @@ def structural_score(candidate: dict) -> StructuralResult:
     title_lower = (profile.get("current_title") or "").lower()
     is_non_tech = _contains_any(title_lower, config.NON_TECH_TITLE_TERMS)
 
-    # Hard floor for wholly irrelevant careers (Civil Engineers, Accountants,
-    # HR Managers, etc.) that score near zero on both title and career evidence.
-    # Without this, a Civil Engineer with 10 YOE and good logistics can
-    # outscore a Backend ML engineer who got penalised for being abroad.
-    # Threshold: title_domain <= 0.05 (non-tech title) AND career_evidence
-    # <= 0.15 (no retrieval/ML narrative; the 0.10 product-roles bonus can
-    # push career_evidence to 0.10–0.15 even for wholly irrelevant profiles,
-    # so we use 0.15 as the ceiling, not 0.05).
-    # Tightened irrelevant career check: also fires if the current title is
-    # explicitly non-tech and they have never held a technical title.
-    if (components["title_domain"] <= 0.05 and components["career_evidence"] <= 0.15) or (is_non_tech and not has_tech_title):
+    # Tightened irrelevant career check:
+    # 1. Wholly irrelevant careers (Civil Engineers, Accountants, HR Managers, etc.)
+    # 2. explicitly non-tech title and has never held a technical title
+    # 3. Candidate is not in an ML/AI role (title_domain < 1.0) and has zero retrieval/search/ranking career history evidence.
+    history_narrative = " ".join((j.get("description") or "") for j in history).lower()
+    retrieval_hits = _count_hits(history_narrative, config.RETRIEVAL_EVIDENCE_TERMS)
+    is_ml_title = _contains_any(title_lower, config.ML_TITLE_TERMS) or (
+        components["title_domain"] >= 1.0
+    )
+
+    if (
+        (components["title_domain"] <= 0.05 and components["career_evidence"] <= 0.15)
+        or (is_non_tech and not has_tech_title)
+        or (not is_ml_title and retrieval_hits == 0)
+    ):
         result.penalties.append("irrelevant_career")
         result.concerns.append("no ML/retrieval background found in title or career history")
         base = min(base, 0.08)

@@ -124,7 +124,7 @@ ranker/
   honeypot.py             integrity checks (calibration notes inline)
   reasoning.py            Stage-4-oriented reasoning generation
   pipeline.py             scoring orchestration, top-K selection, CSV writer
-tests/test_pipeline.py    26 tests: honeypots, traps, tie-breaks, CSV format
+tests/test_pipeline.py    29 tests: honeypots, traps, tie-breaks, CSV format
 data/                     job description + bundle sample (sandbox input)
 scripts/                  the official format validator
 artifacts/                embedding artifacts written by embed.py
